@@ -65,7 +65,7 @@ class SequencePredictor(Model):
         """Runs an rnn on the input using TensorFlows's
         @tf.nn.dynamic_rnn function, and returns the final state as a prediction.
 
-        TODO: 
+        TODO:
             - Call tf.nn.dynamic_rnn using @cell below. See:
               https://www.tensorflow.org/api_docs/python/nn/recurrent_neural_networks
             - Apply a sigmoid transformation on the final state to
@@ -87,6 +87,9 @@ class SequencePredictor(Model):
 
         x = self.inputs_placeholder
         ### YOUR CODE HERE (~2-3 lines)
+        output, _ = tf.nn.dynamic_rnn(cell, x, time_major=False,dtype=tf.float32)
+        preds = tf.reshape(output[:,-1,:], shape=(-1, 1))
+        preds = tf.nn.sigmoid(preds)
         ### END YOUR CODE
 
         return preds #state # preds
@@ -108,7 +111,7 @@ class SequencePredictor(Model):
         y = self.labels_placeholder
 
         ### YOUR CODE HERE (~1-2 lines)
-
+        loss = tf.reduce_mean(tf.nn.l2_loss(preds - self.labels_placeholder))
         ### END YOUR CODE
 
         return loss
@@ -143,6 +146,22 @@ class SequencePredictor(Model):
         # - Remember to clip gradients only if self.config.clip_gradients
         # is True.
         # - Remember to set self.grad_norm
+        grads_and_vars = optimizer.compute_gradients(loss)
+        if self.config.clip_gradients:
+            grads = [g for g, v in grads_and_vars]
+            grads_clip,self.grad_norm= tf.clip_by_global_norm(grads, self.config.max_grad_norm)
+            grads_and_vars = zip(grads_clip, [v for _, v in grads_and_vars])
+        else:
+            self.grad_norm = tf.global_norm(grads_and_vars)
+        train_op =optimizer.apply_gradients(grads_and_vars)
+        # grads = optimizer.compute_gradients(loss)
+        # if self.config.clip_gradients:
+        #     tvars = tf.trainable_variables()
+        #     grads, self.grad_norm = tf.clip_by_global_norm(tf.gradients(loss, tvars), self.config.max_grad_norm)
+        #     grads = zip(grads, tvars)
+        # else:
+        #     self.grad_norm = tf.global_norm(grads)
+        # train_op = optimizer.apply_gradients(grads)
 
         ### END YOUR CODE
 
